@@ -1,6 +1,10 @@
 # blame
 
-Roadmap:
+## Core concept
+
+Blame is a non-profit fan game created based off of the 1998 manga BLAME! by Tsutomu Nihei. Considering the vast and tretchorous world presented in the manga, I wanted to imitate the loneliness and danger as accurately as I could manage, given my capabilities. Hence I decided the least recourse-intensive way to achieve this would be via a terminal-based RPG/roguelike. My goal is to give the sense of endless traversal and perilous danger throughut the course of the game. I do not intend the player to be the MC, Kirii, but as someone else who is an inhabitant of the City. The goal is to have the player start somewhere within a lower strata, scavenging and exploring the collapsing city and its remaining megastructures. You may find people along the way, or dangerous entities. Regardless, the goal will be to escape the city, reach the netsphere and escape the dangers of whats left outside the netsphere. For this game I've taken inspiration from Roadwarden, Caves of Qud and, of course, BLAME!.
+
+## Roadmap:
 
 ### Phase 1: Core Engine (Complete)
 
@@ -21,14 +25,14 @@ Roadmap:
 - [x] Basic interaction system (e.g., scanning terminals, opening doors).
 - [x] Simple enemy encounters and a rudimentary turn-based combat model.
 
-### Phase 3: World & Narrative (In Progress)
+### Phase 3: World & Narrative (Complete)
 
 - [x] Enhanced procedural generation: large-scale structures, unique landmarks, and varied "biomes" within The City.
 - [x] Fragmented narrative system: discoverable logs, item descriptions, and environmental storytelling.
 - [x] Introduction of simple NPCs or environmental hazards.
 - [x] Atmospheric text descriptions to build the world.
 
-### Phase 4: Polish & Expansion
+### Phase 4: Polish & Expansion (Complete)
 
 - [x] Advanced enemy AI and more complex combat mechanics.
 - [x] Cybernetic Implants and Installation System.
