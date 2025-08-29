@@ -8,3 +8,9 @@ class Enemy:
 
     def is_alive(self):
         return self.health > 0
+
+class NPC:
+    def __init__(self, name, description, dialogue):
+        self.name = name
+        self.description = description
+        self.dialogue = dialogue

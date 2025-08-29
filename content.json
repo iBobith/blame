@@ -1,23 +1,26 @@
 {
   "room_descriptions": {
     "Infrastructure": [
-      "A vast, empty chamber of polished, black stone. The air is still and cold.",
-      "A narrow corridor humming with the faint sound of distant machinery.",
-      "A wide platform overlooking a seemingly bottomless chasm. The silence here is heavy.",
-      "A junction of several identical-looking passageways. A faint, unpleasant smell lingers.",
-      "A collapsed section of a walkway. Debris is scattered everywhere."
+      "A vast, empty chamber of polished, black stone, stretching into an oppressive darkness. The air is still and cold, carrying the faint, metallic tang of decay.",
+      "A narrow corridor, its walls a mosaic of corroded metal and flickering emergency lights. A low, rhythmic hum resonates from deep within the structure, a constant reminder of the city's unseen mechanisms.",
+      "A wide platform, precariously suspended over a seemingly bottomless chasm. The silence here is heavy, broken only by the distant, echoing drip of unseen water. Below, faint, unidentifiable lights twinkle in the abyss.",
+      "A junction of several identical-looking passageways, each disappearing into the gloom. A faint, unpleasant smell, like ozone and damp concrete, lingers in the stagnant air.",
+      "A collapsed section of a walkway, twisted girders and shattered plasteel scattered everywhere. The path ahead is treacherous, demanding careful navigation over the debris of a forgotten catastrophe.",
+      "A cavernous space, once a grand concourse, now choked with the skeletal remains of colossal machinery. Dust motes dance in the weak, filtered light, illuminating the scale of the city's ambition and its subsequent ruin."
     ],
     "Residential": [
-      "A small, cubical room with walls made of a strange, porous material.",
-      "A series of interconnected pods, long since abandoned.",
-      "A communal living area, now silent and covered in dust.",
-      "A cramped living space, the personal effects of its former owner long gone."
+      "A small, cubical room with walls made of a strange, porous material that seems to absorb all sound. The air is stale, carrying the faint, ghost-like scent of long-departed inhabitants.",
+      "A series of interconnected pods, their transparent fronts clouded with grime and age. Each pod tells a silent story of a life abruptly ended or abandoned, personal effects frozen in time.",
+      "A communal living area, now silent and covered in a thick blanket of dust. Faded murals on the walls depict a utopian vision that starkly contrasts with the current desolation.",
+      "A cramped living space, the personal effects of its former owner long gone, leaving only faint impressions on the grimy surfaces. The silence is profound, a testament to the city's forgotten populace.",
+      "A network of narrow, winding passages, lined with countless identical doors. The air is heavy with the weight of countless forgotten lives, a silent testament to the city's past."
     ],
     "Industrial": [
-      "A room filled with dormant, monolithic machinery, all covered in a thick layer of dust.",
-      "The corridor opens into a massive, spherical space. Strange glyphs cover the walls.",
-      "A factory floor, silent except for the dripping of some unknown fluid.",
-      "A maintenance tunnel, filled with pipes and cables."
+      "A room filled with dormant, monolithic machinery, all covered in a thick layer of dust and cobwebs. The sheer scale of the equipment hints at its immense, forgotten purpose.",
+      "The corridor opens into a massive, spherical space, its metallic walls adorned with strange, glowing glyphs that pulse with a faint, internal light. The air vibrates with a low, resonant hum.",
+      "A factory floor, silent except for the rhythmic dripping of some unknown, viscous fluid from overhead pipes. The air is thick with the smell of rust and decay, a testament to years of neglect.",
+      "A maintenance tunnel, a labyrinth of pipes, cables, and conduits. The air is warm and humid, and the distant clanking of unseen mechanisms echoes through the confined space.",
+      "A vast, echoing processing plant, its conveyor belts and robotic arms frozen mid-motion. The silence is unnerving, broken only by the occasional creak of settling metal, a ghost of its former industriousness."
     ]
   },
   "lore_messages": [
@@ -68,6 +71,56 @@
       "name": "rubble",
       "description": "A pile of collapsed structure, blocking the way.",
       "strength_required": 30
+    }
+  ],
+  "telemetry_dialogue": [
+    "//LOG: Sector 4.7.2. Anomaly detected. Non-standardized biological signature. Proceed with caution.",
+    "//TRANSMISSION: Data stream corrupted. Origin unknown. Fragment: ...seek the Net-Terminal Gene...",
+    "//ALERT: Structural integrity compromised. Level 9. Evacuate immediately. This is not a drill.",
+    "//RECORDING: ...the Builders... they left us... alone in this endless labyrinth...",
+    "//WARNING: Unauthorized access to Mainframe. Identity verification failed. Exterminator units dispatched.",
+    "//QUERY: What is the purpose of this megastructure? Answer: Unknown. Function: Expansion.",
+    "//OBSERVATION: The city consumes. It grows without direction, a cancerous sprawl of silicon and steel.",
+    "//MESSAGE: Do not trust the Safeguard. Their purpose is not your survival."
+  ],
+  "npcs": [
+    {
+      "name": "Wounded Engineer",
+      "description": "A figure in tattered, stained overalls, slumped against a wall. Their breathing is shallow.",
+      "dialogue": [
+        "//VITAL SIGNS: Critical. System failure imminent. Data transfer... incomplete...",
+        "//THOUGHT FRAGMENT: ...the Net-Terminal Gene... it's the only way... to stop the expansion...",
+        "//LAST WORDS: ...find... Killy..."
+      ]
+    },
+    {
+      "name": "Automated Drone",
+      "description": "A small, spherical drone, hovering silently. A single, unblinking optical sensor tracks your movement.",
+      "dialogue": [
+        "//STATUS: Monitoring. Sector 3.1.4. No anomalies detected. Proceed.",
+        "//PROTOCOL: Maintain order. Eliminate unauthorized biological entities.",
+        "//DATA LOG: Environmental parameters within acceptable deviation. Continuing patrol."
+      ]
+    }
+  ],
+  "cybernetic_implants": [
+    {
+      "name": "Neural Interface",
+      "description": "A subtle implant that enhances cognitive processing. Allows connection to certain systems.",
+      "stat_bonus": {},
+      "implant_type": "connection"
+    },
+    {
+      "name": "Kinetic Enhancer",
+      "description": "A muscular augmentation that boosts physical strength.",
+      "stat_bonus": {"strength": 5},
+      "implant_type": "strength"
+    },
+    {
+      "name": "Biotic Regulator",
+      "description": "An internal system that improves cellular regeneration and resilience.",
+      "stat_bonus": {"health": 20},
+      "implant_type": "health"
     }
   ]
 }
