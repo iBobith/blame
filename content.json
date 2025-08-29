@@ -1,0 +1,73 @@
+{
+  "room_descriptions": {
+    "Infrastructure": [
+      "A vast, empty chamber of polished, black stone. The air is still and cold.",
+      "A narrow corridor humming with the faint sound of distant machinery.",
+      "A wide platform overlooking a seemingly bottomless chasm. The silence here is heavy.",
+      "A junction of several identical-looking passageways. A faint, unpleasant smell lingers.",
+      "A collapsed section of a walkway. Debris is scattered everywhere."
+    ],
+    "Residential": [
+      "A small, cubical room with walls made of a strange, porous material.",
+      "A series of interconnected pods, long since abandoned.",
+      "A communal living area, now silent and covered in dust.",
+      "A cramped living space, the personal effects of its former owner long gone."
+    ],
+    "Industrial": [
+      "A room filled with dormant, monolithic machinery, all covered in a thick layer of dust.",
+      "The corridor opens into a massive, spherical space. Strange glyphs cover the walls.",
+      "A factory floor, silent except for the dripping of some unknown fluid.",
+      "A maintenance tunnel, filled with pipes and cables."
+    ]
+  },
+  "lore_messages": [
+    "...system corruption at level 7... Net-Terminal Gene... safeguard protocol...",
+    "...unauthorized access detected... deploying exterminator units...",
+    "...the city grows... the builders are gone... only the echoes remain...",
+    "...log entry 734. Still no sign of human life with the Net-Terminal Gene. My search continues...",
+    "...Warning: Silicon Lifeforms detected in this sector. Proceed with caution...",
+    "...Authority Level mismatch. Access to Netsphere denied...",
+    "...gravitational fluctuations detected. Reality integrity at 97%...",
+    "...unknown biological signature detected. Quarantine protocols engaged..."
+  ],
+  "item_logs": [
+    "A small, metallic sphere. It feels warm to the touch.",
+    "A data chip. It appears to be corrupted.",
+    "A shard of black material. It seems to absorb the light.",
+    "A tattered piece of cloth, the insignia of a long-forgotten faction."
+  ],
+  "items": {
+    "gbe": {
+      "name": "GBE",
+      "description": "A Gravitational Beam Emitter. A compact, impossibly dense weapon that hums with latent power."
+    }
+  },
+  "enemies": [
+    {
+      "name": "Silicon Life",
+      "description": "A grotesque fusion of flesh and machine, it moves with a jerky, unnatural gait.",
+      "health": 30,
+      "damage": 5,
+      "durability": 15
+    },
+    {
+      "name": "Safeguard",
+      "description": "A humanoid figure with an unnervingly blank face, it stands with a rigid posture.",
+      "health": 50,
+      "damage": 10,
+      "durability": 30
+    }
+  ],
+  "obstacles": [
+    {
+      "name": "broken door",
+      "description": "A heavy blast door, partially jammed.",
+      "strength_required": 20
+    },
+    {
+      "name": "rubble",
+      "description": "A pile of collapsed structure, blocking the way.",
+      "strength_required": 30
+    }
+  ]
+}
