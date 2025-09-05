@@ -1,4 +1,4 @@
-from items import Item, CyberneticImplant
+from src.gameobjects.items import Item, CyberneticImplant
 
 class Terminal(Item):
     def __init__(self, name, description, lore_message):
@@ -22,3 +22,7 @@ class Obstacle(Item):
     def __init__(self, name, description, strength_required):
         super().__init__(name, description)
         self.strength_required = strength_required
+        self.health = strength_required
+
+    def is_destroyed(self):
+        return self.health <= 0

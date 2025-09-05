@@ -1,11 +1,11 @@
 import os
 import platform
 import random
-from world import generate_world, get_opposite_direction
-from interactables import Terminal, Obstacle, CyberneticTerminal
-from enemies import Enemy, NPC
-from items import CyberneticImplant
-from colors import Colors
+from src.world import generate_world, get_opposite_direction, CONTENT
+from src.gameobjects.interactables import Terminal, Obstacle, CyberneticTerminal
+from src.gameobjects.enemies import Enemy, NPC
+from src.gameobjects.items import CyberneticImplant
+from src.colors import Colors
 
 class Player:
     def __init__(self, starting_room, starting_strata):

@@ -1,11 +1,14 @@
 import random
 import json
-from items import Item, CyberneticImplant
-from interactables import Terminal, Obstacle, CyberneticTerminal
-from enemies import Enemy, NPC
+import os
+from src.gameobjects.items import Item, CyberneticImplant
+from src.gameobjects.interactables import Terminal, Obstacle, CyberneticTerminal
+from src.gameobjects.enemies import Enemy, NPC
 
 # Load content from JSON file
-with open("content.json", "r") as f:
+script_dir = os.path.dirname(__file__)
+file_path = os.path.join(script_dir, "data", "content.json")
+with open(file_path, "r") as f:
     CONTENT = json.load(f)
 
 class Room:
