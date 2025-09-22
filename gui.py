@@ -2,20 +2,37 @@ import pygame
 import os
 import platform
 import random
-from src.world import generate_world, get_opposite_direction, CONTENT
+import json
+from datetime import datetime
+from src.world import generate_world, get_opposite_direction, CONTENT, Room, Strata
 from src.gameobjects.interactables import Terminal, Obstacle, CyberneticTerminal
 from src.gameobjects.enemies import Enemy, NPC
-from src.gameobjects.items import CyberneticImplant
+from src.gameobjects.items import CyberneticImplant, Item
+from src.gameobjects.factory import create_from_json
 
 class Colors:
-    BRIGHT_BLUE = (0, 128, 255)
-    BRIGHT_WHITE = (255, 255, 255)
-    GREEN = (0, 255, 0)
-    YELLOW = (255, 255, 0)
-    CYAN = (0, 255, 255)
-    MAGENTA = (255, 0, 255)
-    RED = (255, 0, 0)
-    BLACK = (0, 0, 0)
+    def __init__(self, theme='dark'):
+        self.set_theme(theme)
+
+    def set_theme(self, theme):
+        if theme == 'dark':
+            self.BRIGHT_BLUE = (0, 128, 255)
+            self.BRIGHT_WHITE = (255, 255, 255)
+            self.GREEN = (0, 255, 0)
+            self.YELLOW = (255, 255, 0)
+            self.CYAN = (0, 255, 255)
+            self.MAGENTA = (255, 0, 255)
+            self.RED = (255, 0, 0)
+            self.BLACK = (0, 0, 0)
+        else:
+            self.BRIGHT_BLUE = (0, 0, 255)
+            self.BRIGHT_WHITE = (0, 0, 0)
+            self.GREEN = (0, 128, 0)
+            self.YELLOW = (200, 200, 0)
+            self.CYAN = (0, 128, 128)
+            self.MAGENTA = (128, 0, 128)
+            self.RED = (255, 0, 0)
+            self.BLACK = (255, 255, 255)
 
 class Player:
     def __init__(self, starting_room, starting_strata):
@@ -47,41 +64,84 @@ class Player:
     def is_alive(self):
         return self.health > 0
 
+    def to_json(self):
+        return {
+            "x": self.x,
+            "y": self.y,
+            "z": self.z,
+            "health": self.health,
+            "energy": self.energy,
+            "strength": self.strength,
+            "hunger": self.hunger,
+            "thirst": self.thirst,
+            "ailments": self.ailments,
+            "inventory": [item.to_json() for item in self.inventory],
+            "installed_implants": [implant.to_json() for implant in self.installed_implants],
+            "has_connection_implant": self.has_connection_implant,
+            "last_direction_moved": self.last_direction_moved,
+            "strata_id": self.current_strata.strata_id
+        }
+
+    @classmethod
+    def from_json(cls, data, all_stratas):
+        strata = next((s for s in all_stratas if s.strata_id == data["strata_id"]), None)
+        if not strata:
+            return None
+        room = strata.grid.get((data["x"], data["y"], data["z"]))
+        if not room:
+            return None
+        
+        player = cls(room, strata)
+        player.health = data["health"]
+        player.energy = data["energy"]
+        player.strength = data["strength"]
+        player.hunger = data["hunger"]
+        player.thirst = data["thirst"]
+        player.ailments = data["ailments"]
+        player.inventory = [create_from_json(item_data) for item_data in data["inventory"]]
+        player.installed_implants = [create_from_json(implant_data) for implant_data in data["installed_implants"]]
+        player.has_connection_implant = data["has_connection_implant"]
+        player.last_direction_moved = data["last_direction_moved"]
+        return player
+
 class Game:
-    def __init__(self):
+    def __init__(self, all_stratas=None, player=None):
         self.is_running = True
-        starting_room, all_stratas = generate_world(num_stratas=1)
-        self.all_stratas = all_stratas
-        self.player = Player(starting_room, self.all_stratas[0])
+        if all_stratas and player:
+            self.all_stratas = all_stratas
+            self.player = player
+        else:
+            starting_room, self.all_stratas = generate_world(num_stratas=1)
+            self.player = Player(starting_room, self.all_stratas[0])
         self.message = []
 
-    def handle_command(self, command):
+    def handle_command(self, command, colors):
         parts = command.split()
         if not parts:
             return []
 
         verb = parts[0]
         if self.player.current_room.enemies and verb in ['move', 'scan', 'get']:
-            return [("You can't do that during combat!", Colors.RED)]
+            return [("You can't do that during combat!", colors.RED)]
 
         if verb == "quit":
             self.is_running = False
-            return [("Exiting.", Colors.YELLOW)]
+            return [("Exiting.", colors.YELLOW)]
         elif verb == "look":
-            output = [(self.player.current_room.description, Colors.BRIGHT_WHITE)]
+            output = [(self.player.current_room.description, colors.BRIGHT_WHITE)]
             
             actual_items = [item for item in self.player.current_room.items if not isinstance(item, NPC)]
             npcs_in_room = [item for item in self.player.current_room.items if isinstance(item, NPC)]
 
             if actual_items:
-                output.append((f'\nYou see: ', Colors.BRIGHT_WHITE))
-                output.append((f", ".join([item.name for item in actual_items]), Colors.YELLOW))
+                output.append((f'\nYou see: ', colors.BRIGHT_WHITE))
+                output.append((f", ".join([item.name for item in actual_items if item]), colors.YELLOW))
             if npcs_in_room:
-                output.append((f'\nFigures present: ', Colors.BRIGHT_WHITE))
-                output.append((f", ".join([npc.name for npc in npcs_in_room]), Colors.CYAN))
+                output.append((f'\nFigures present: ', colors.BRIGHT_WHITE))
+                output.append((f", ".join([npc.name for npc in npcs_in_room if npc]), colors.CYAN))
             if self.player.current_room.enemies:
-                output.append((f'\nHostiles: ', Colors.BRIGHT_WHITE))
-                output.append((f", ".join([f'{enemy.name} ({enemy.health} HP)' for enemy in self.player.current_room.enemies]), Colors.RED))
+                output.append((f'\nHostiles: ', colors.BRIGHT_WHITE))
+                output.append((f", ".join([f'{enemy.name} ({enemy.health} HP)' for enemy in self.player.current_room.enemies]), colors.RED))
             
             exits_output = []
             for direction, room in sorted(self.player.current_room.exits.items()):
@@ -90,12 +150,12 @@ class Game:
                     exits_output.append(f"{direction} (blocked by {obstacle.name})")
                 else:
                     exits_output.append(direction)
-            output.append((f'\nExits: ', Colors.BRIGHT_WHITE))
-            output.append((f", ".join(exits_output), Colors.GREEN))
+            output.append((f'\nExits: ', colors.BRIGHT_WHITE))
+            output.append((f", ".join(exits_output), colors.GREEN))
 
             if self.player.last_direction_moved:
-                output.append((f'\nBack: ', Colors.BRIGHT_WHITE))
-                output.append((get_opposite_direction(self.player.last_direction_moved), Colors.GREEN))
+                output.append((f'\nBack: ', colors.BRIGHT_WHITE))
+                output.append((get_opposite_direction(self.player.last_direction_moved), colors.GREEN))
 
             return output
         elif verb == "move":
@@ -104,9 +164,9 @@ class Game:
                 if direction in self.player.current_room.obstacles:
                     obstacle = self.player.current_room.obstacles[direction]
                     if obstacle.name == "strata exit":
-                        return [(f"You stand before a massive portal. It leads to another strata. You need to clear the obstacle first.", Colors.YELLOW)]
+                        return [(f"You stand before a massive portal. It leads to another strata. You need to clear the obstacle first.", colors.YELLOW)]
                     else:
-                        return [(f"The way {direction} is blocked by a {obstacle.name}.", Colors.RED)]
+                        return [(f"The way {direction} is blocked by a {obstacle.name}.", colors.RED)]
                 if direction in self.player.current_room.exits:
                     new_room = self.player.current_room.exits[direction]
                     self.player.current_room = new_room
@@ -114,14 +174,14 @@ class Game:
                     self.player.y = new_room.y
                     self.player.z = new_room.z
                     self.player.last_direction_moved = direction
-                    return [(f"You move {direction}.", Colors.GREEN)] + self.handle_command("look")
+                    return [(f"You move {direction}.", colors.GREEN)] + self.handle_command("look", colors)
                 else:
-                    return [(f"You can't go that way.", Colors.RED)]
+                    return [(f"You can't go that way.", colors.RED)]
             else:
-                return [(f"Move where?", Colors.YELLOW)]
+                return [(f"Move where?", colors.YELLOW)]
         elif verb == "get":
             if len(parts) > 1:
-                item_name = parts[1]
+                item_name = " ".join(parts[1:])
                 item_to_get = None
                 for item in self.player.current_room.items:
                     if item.name.lower() == item_name.lower():
@@ -130,60 +190,60 @@ class Game:
                 if item_to_get:
                     self.player.add_item(item_to_get)
                     self.player.current_room.remove_item(item_to_get)
-                    return [(f"You picked up the {item_to_get.name}.", Colors.GREEN)]
+                    return [(f"You picked up the {item_to_get.name}.", colors.GREEN)]
                 else:
-                    return [(f"You don't see that here.", Colors.RED)]
+                    return [(f"You don't see that here.", colors.RED)]
             else:
-                return [(f"Get what?", Colors.YELLOW)]
+                return [(f"Get what?", colors.YELLOW)]
         elif verb == "inventory" or verb == "inv":
             if self.player.inventory:
-                output = [(f"You are carrying:", Colors.BRIGHT_WHITE)]
+                output = [(f"You are carrying:", colors.BRIGHT_WHITE)]
                 for item in self.player.inventory:
                     log_indicator = " (log)" if item.log else ""
-                    output.append((f"- {item.name}{log_indicator}: {item.description}", Colors.YELLOW))
+                    output.append((f"- {item.name}{log_indicator}: {item.description}", colors.YELLOW))
                 if self.player.installed_implants:
-                    output.append((f"\nInstalled Implants:", Colors.BRIGHT_WHITE))
+                    output.append((f"\nInstalled Implants:", colors.BRIGHT_WHITE))
                     for implant in self.player.installed_implants:
-                        output.append((f"- {implant.name}: {implant.description}", Colors.CYAN))
+                        output.append((f"- {implant.name}: {implant.description}", colors.CYAN))
                 return output
             else:
-                return [(f"You are not carrying anything.", Colors.YELLOW)]
+                return [(f"You are not carrying anything.", colors.YELLOW)]
         elif verb == "status":
             return [
-                (f"Health: {self.player.health}", Colors.GREEN),
-                (f"Energy: {self.player.energy}", Colors.YELLOW),
-                (f"Strength: {self.player.strength}", Colors.CYAN),
+                (f"Health: {self.player.health}", colors.GREEN),
+                (f"Energy: {self.player.energy}", colors.YELLOW),
+                (f"Strength: {self.player.strength}", colors.CYAN),
             ]
         elif verb == "scan":
             if len(parts) > 1:
-                target_name = parts[1]
+                target_name = " ".join(parts[1:])
                 target_to_scan = None
                 for item in self.player.current_room.items:
                     if item.name.lower() == target_name.lower() and (isinstance(item, Terminal) or isinstance(item, CyberneticTerminal)):
                         target_to_scan = item
                         break
                 if target_to_scan:
-                    output = [(f"You scan the {target_to_scan.name}...", Colors.BRIGHT_WHITE), (target_to_scan.lore_message, Colors.BRIGHT_WHITE)]
+                    output = [(f"You scan the {target_to_scan.name}...", colors.BRIGHT_WHITE), (target_to_scan.lore_message, colors.BRIGHT_WHITE)]
                     if isinstance(target_to_scan, CyberneticTerminal):
-                        output.append(("This terminal can be used to install cybernetic implants. Use 'install [implant_name]'.", Colors.BRIGHT_WHITE))
+                        output.append(("This terminal can be used to install cybernetic implants. Use 'install [implant_name]'.", colors.BRIGHT_WHITE))
                     return output
                 else:
-                    return [(f"You can't scan that.", Colors.RED)]
+                    return [(f"You can't scan that.", colors.RED)]
             else:
-                return [(f"Scan what?", Colors.YELLOW)]
+                return [(f"Scan what?", colors.YELLOW)]
         elif verb == "read":
             if len(parts) > 1:
-                item_name = parts[1]
+                item_name = " ".join(parts[1:])
                 item_to_read = self.player.find_item_by_name(item_name)
                 if item_to_read and item_to_read.log:
-                    return [(f"The log on the {item_to_read.name} reads:", Colors.BRIGHT_WHITE), (f'"{item_to_read.log}"', Colors.YELLOW)]
+                    return [(f"The log on the {item_to_read.name} reads:", colors.BRIGHT_WHITE), (f'"{item_to_read.log}"', colors.YELLOW)]
                 else:
-                    return [(f"You can't read that.", Colors.RED)]
+                    return [(f"You can't read that.", colors.RED)]
             else:
-                return [(f"Read what?", Colors.YELLOW)]
+                return [(f"Read what?", colors.YELLOW)]
         elif verb == "install":
             if len(parts) > 1:
-                implant_name = parts[1]
+                implant_name = " ".join(parts[1:])
                 implant_to_install = None
                 for item in self.player.inventory:
                     if isinstance(item, CyberneticImplant) and item.name.lower() == implant_name.lower():
@@ -191,7 +251,7 @@ class Game:
                         break
                 
                 if not implant_to_install:
-                    return [(f"You don't have that implant in your inventory.", Colors.RED)]
+                    return [(f"You don't have that implant in your inventory.", colors.RED)]
 
                 cybernetic_terminal_present = False
                 for item in self.player.current_room.items:
@@ -200,18 +260,18 @@ class Game:
                         break
                 
                 if not cybernetic_terminal_present:
-                    return [(f"There is no cybernetic terminal here to install implants.", Colors.RED)]
+                    return [(f"There is no cybernetic terminal here to install implants.", colors.RED)]
 
                 message = cybernetic_terminal_present.install_implant(self.player, implant_to_install)
                 self.player.installed_implants.append(implant_to_install)
-                return [(message, Colors.GREEN)]
+                return [(message, colors.GREEN)]
             else:
-                return [(f"Install what?", Colors.YELLOW)]
+                return [(f"Install what?", colors.YELLOW)]
         elif verb == "scavenge":
             if len(parts) > 1:
-                target_name = parts[1]
+                target_name = " ".join(parts[1:])
                 if not self.player.has_connection_implant:
-                    return [(f"You need a Neural Interface (connection implant) to scavenge corpses.", Colors.RED)]
+                    return [(f"You need a Neural Interface (connection implant) to scavenge corpses.", colors.RED)]
 
                 scavenge_target = None
                 for enemy in self.player.current_room.enemies:
@@ -220,41 +280,41 @@ class Game:
                         break
                 
                 if not scavenge_target:
-                    return [(f"There is no defeated enemy by that name to scavenge.", Colors.RED)]
+                    return [(f"There is no defeated enemy by that name to scavenge.", colors.RED)]
 
                 self.player.health -= 5
-                output = [(f"You attempt to scavenge the {scavenge_target.name}'s corpse, taking 5 damage.", Colors.YELLOW)]
+                output = [(f"You attempt to scavenge the {scavenge_target.name}'s corpse, taking 5 damage.", colors.YELLOW)]
 
                 if random.random() < 0.4:
                     implant_data = random.choice(CONTENT["cybernetic_implants"])
                     found_implant = CyberneticImplant(implant_data["name"], implant_data["description"], implant_data["stat_bonus"], implant_data["implant_type"])
                     self.player.add_item(found_implant)
-                    output.append((f"You found a {found_implant.name} and added it to your inventory!", Colors.GREEN))
+                    output.append((f"You found a {found_implant.name} and added it to your inventory!", colors.GREEN))
                 else:
-                    output.append(("You found nothing of value.", Colors.YELLOW))
+                    output.append(("You found nothing of value.", colors.YELLOW))
                 
                 return output
             else:
-                return [(f"Scavenge what?", Colors.YELLOW)]
+                return [(f"Scavenge what?", colors.YELLOW)]
         elif verb == "talk":
             if len(parts) > 1:
-                target_name = parts[1]
+                target_name = " ".join(parts[1:])
                 npc_to_talk = None
                 for item in self.player.current_room.items:
                     if isinstance(item, NPC) and item.name.lower() == target_name.lower():
                         npc_to_talk = item
                         break
                 if npc_to_talk:
-                    return [(f"{npc_to_talk.name} says: {random.choice(npc_to_talk.dialogue)}", Colors.CYAN)]
+                    return [(f"{npc_to_talk.name} says: {random.choice(npc_to_talk.dialogue)}", colors.CYAN)]
                 else:
-                    return [(f"There is no one here to talk to by that name.", Colors.RED)]
+                    return [(f"There is no one here to talk to by that name.", colors.RED)]
             else:
-                return [(f"Talk to whom?", Colors.YELLOW)]
+                return [(f"Talk to whom?", colors.YELLOW)]
         elif verb == "attack":
             if len(parts) < 2:
-                return [(f"Attack what?", Colors.YELLOW)]
+                return [(f"Attack what?", colors.YELLOW)]
             
-            target_name = parts[1]
+            target_name = " ".join(parts[1:])
             
             enemy_to_attack = None
             for enemy in self.player.current_room.enemies:
@@ -266,20 +326,20 @@ class Game:
                 output = []
                 player_damage = self.player.strength
                 if self.player.find_item_by_name("gbe"):
-                    output.append((f"You fire the GBE!", Colors.YELLOW))
+                    output.append((f"You fire the GBE!", colors.YELLOW))
                     player_damage = 50
                 
                 effective_damage = max(0, player_damage - enemy_to_attack.durability)
                 enemy_to_attack.health -= effective_damage
-                output.append((f"You attack the {enemy_to_attack.name} for {effective_damage} damage.", Colors.GREEN))
+                output.append((f"You attack the {enemy_to_attack.name} for {effective_damage} damage.", colors.GREEN))
 
                 if not enemy_to_attack.is_alive():
-                    output.append((f"The {enemy_to_attack.name} is destroyed.", Colors.GREEN))
+                    output.append((f"The {enemy_to_attack.name} is destroyed.", colors.GREEN))
                     self.player.current_room.remove_enemy(enemy_to_attack)
                 
                 for enemy in self.player.current_room.enemies:
                     self.player.health -= enemy.damage
-                    output.append((f"The {enemy.name} attacks you for {enemy.damage} damage.", Colors.RED))
+                    output.append((f"The {enemy.name} attacks you for {enemy.damage} damage.", colors.RED))
                 return output
 
             obstacle_to_attack = None
@@ -293,31 +353,30 @@ class Game:
             if obstacle_to_attack:
                 player_damage = self.player.strength
                 obstacle_to_attack.health -= player_damage
-                output = [(f"You attack the {obstacle_to_attack.name} for {player_damage} damage.", Colors.GREEN)]
+                output = [(f"You attack the {obstacle_to_attack.name} for {player_damage} damage.", colors.GREEN)]
                 if obstacle_to_attack.is_destroyed():
-                    output.append((f"The {obstacle_to_attack.name} is destroyed.", Colors.GREEN))
+                    output.append((f"The {obstacle_to_attack.name} is destroyed.", colors.GREEN))
                     self.player.current_room.remove_obstacle(obstacle_direction)
                 return output
 
-            return [(f"There is nothing here to attack by that name.", Colors.RED)]
+            return [(f"There is nothing here to attack by that name.", colors.RED)]
 
         else:
-            return [(f"Unknown command: '{command}'", Colors.RED)]
+            return [(f"Unknown command: '{command}'", colors.RED)]
 
 class Button:
-    def __init__(self, x, y, width, height, text, color, hover_color):
+    def __init__(self, x, y, width, height, text, colors):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
-        self.color = color
-        self.hover_color = hover_color
+        self.colors = colors
         self.is_hovered = False
 
     def draw(self, screen, font):
-        color = self.hover_color if self.is_hovered else self.color
+        color = self.colors.BRIGHT_BLUE if self.is_hovered else self.colors.BLACK
         pygame.draw.rect(screen, color, self.rect)
-        pygame.draw.rect(screen, Colors.BRIGHT_WHITE, self.rect, 2)
+        pygame.draw.rect(screen, self.colors.BRIGHT_WHITE, self.rect, 2)
 
-        text_surface = font.render(self.text, True, Colors.BRIGHT_WHITE)
+        text_surface = font.render(self.text, True, self.colors.BRIGHT_WHITE)
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
 
@@ -339,57 +398,38 @@ class GameGUI:
 
         self.font = pygame.font.Font(None, 24)
         self.game_state = "main_menu"
+        self.colors = Colors()
 
         # Main menu buttons
-        self.start_button = Button(300, 200, 200, 50, "Start New Game", Colors.BLACK, Colors.BRIGHT_BLUE)
-        self.load_button = Button(300, 260, 200, 50, "Load Game", Colors.BLACK, Colors.BRIGHT_BLUE)
-        self.settings_button = Button(300, 320, 200, 50, "Settings", Colors.BLACK, Colors.BRIGHT_BLUE)
-        self.exit_button = Button(300, 380, 200, 50, "Exit", Colors.BLACK, Colors.BRIGHT_BLUE)
+        self.start_button = Button(300, 200, 200, 50, "Start New Game", self.colors)
+        self.load_button = Button(300, 260, 200, 50, "Load Game", self.colors)
+        self.settings_button = Button(300, 320, 200, 50, "Settings", self.colors)
+        self.exit_button = Button(300, 380, 200, 50, "Exit", self.colors)
+
+        # Settings buttons
+        self.dark_mode_button = Button(300, 200, 200, 50, "Dark/Light Mode", self.colors)
+        self.text_speed_button = Button(300, 260, 200, 50, "Text Speed", self.colors)
+        self.github_button = Button(300, 320, 200, 50, "Github", self.colors)
+        self.back_button = Button(300, 380, 200, 50, "Back", self.colors)
 
         # In-game UI
         self.input_text = ""
         self.game = None
 
         self.is_running = True
-        self.move_button = Button(20, self.screen_height - 120, 100, 30, "Move", Colors.BLACK, Colors.BRIGHT_BLUE)
-        self.interact_button = Button(130, self.screen_height - 120, 100, 30, "Interact", Colors.BLACK, Colors.BRIGHT_BLUE)
-        self.attack_button = Button(240, self.screen_height - 120, 100, 30, "Attack", Colors.BLACK, Colors.BRIGHT_BLUE)
+        self.move_button = Button(20, self.screen_height - 120, 100, 30, "Move", self.colors)
+        self.interact_button = Button(130, self.screen_height - 120, 100, 30, "Interact", self.colors)
+        self.attack_button = Button(240, self.screen_height - 120, 100, 30, "Attack", self.colors)
         self.direction_buttons = []
         self.show_move_buttons = False
         self.interact_buttons = []
         self.show_interact_buttons = False
         self.attack_buttons = []
         self.show_attack_buttons = False
+        self.save_files = []
+        self.show_save_files = False
 
-    def run(self):
-        while self.is_running:
-            if self.game_state == "main_menu":
-                self.run_main_menu()
-            elif self.game_state == "game":
-                if self.game is None:
-                    self.game = Game()
-                    self.game.message = [("Welcome to blame!", Colors.BRIGHT_WHITE), ("You are a wanderer in a vast, dark megastructure.", Colors.BRIGHT_WHITE)]
-                    self.game.message.extend(self.game.handle_command("look"))
-                self.run_game()
-
-        pygame.quit()
-
-    def run_main_menu(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.is_running = False
-            
-            if self.start_button.handle_event(event):
-                self.game_state = "game"
-            if self.exit_button.handle_event(event):
-                self.is_running = False
-
-        self.screen.fill(Colors.BLACK)
-        self.start_button.draw(self.screen, self.font)
-        self.load_button.draw(self.screen, self.font)
-        self.settings_button.draw(self.screen, self.font)
-        self.exit_button.draw(self.screen, self.font)
-        pygame.display.flip()
+    
 
     def run_game(self):
         if not self.game.player.is_alive():
@@ -408,7 +448,7 @@ class GameGUI:
                     self.direction_buttons = []
                     x_offset = 20
                     for direction in self.game.player.current_room.exits:
-                        button = Button(x_offset, self.screen_height - 160, 80, 30, direction, Colors.BLACK, Colors.BRIGHT_BLUE)
+                        button = Button(x_offset, self.screen_height - 160, 80, 30, direction, self.colors)
                         self.direction_buttons.append(button)
                         x_offset += 90
                 else:
@@ -421,12 +461,12 @@ class GameGUI:
                     x_offset = 130
                     interactable_items = [item for item in self.game.player.current_room.items if not isinstance(item, NPC)]
                     for item in interactable_items:
-                        button = Button(x_offset, self.screen_height - 160, 80, 30, f"get {item.name}", Colors.BLACK, Colors.BRIGHT_BLUE)
+                        button = Button(x_offset, self.screen_height - 160, 80, 30, f"get {item.name}", self.colors)
                         self.interact_buttons.append(button)
                         x_offset += 90
                     for item in self.game.player.current_room.items:
                         if isinstance(item, Terminal):
-                            button = Button(x_offset, self.screen_height - 160, 80, 30, f"scan {item.name}", Colors.BLACK, Colors.BRIGHT_BLUE)
+                            button = Button(x_offset, self.screen_height - 160, 80, 30, f"scan {item.name}", self.colors)
                             self.interact_buttons.append(button)
                             x_offset += 90
                 else:
@@ -438,11 +478,11 @@ class GameGUI:
                     self.attack_buttons = []
                     x_offset = 240
                     for enemy in self.game.player.current_room.enemies:
-                        button = Button(x_offset, self.screen_height - 160, 80, 30, f"attack {enemy.name}", Colors.BLACK, Colors.BRIGHT_BLUE)
+                        button = Button(x_offset, self.screen_height - 160, 80, 30, f"attack {enemy.name}", self.colors)
                         self.attack_buttons.append(button)
                         x_offset += 90
                     for obstacle in self.game.player.current_room.obstacles.values():
-                        button = Button(x_offset, self.screen_height - 160, 80, 30, f"attack {obstacle.name}", Colors.BLACK, Colors.BRIGHT_BLUE)
+                        button = Button(x_offset, self.screen_height - 160, 80, 30, f"attack {obstacle.name}", self.colors)
                         self.attack_buttons.append(button)
                         x_offset += 90
                 else:
@@ -450,28 +490,28 @@ class GameGUI:
 
             for button in self.direction_buttons:
                 if button.handle_event(event):
-                    self.game.message = self.game.handle_command(f"move {button.text}")
+                    self.game.message = self.game.handle_command(f"move {button.text}", self.colors)
                     self.show_move_buttons = False
                     self.direction_buttons = []
             
             for button in self.interact_buttons:
                 if button.handle_event(event):
-                    self.game.message = self.game.handle_command(button.text)
+                    self.game.message = self.game.handle_command(button.text, self.colors)
                     self.show_interact_buttons = False
                     self.interact_buttons = []
             
             for button in self.attack_buttons:
                 if button.handle_event(event):
-                    self.game.message = self.game.handle_command(button.text)
+                    self.game.message = self.game.handle_command(button.text, self.colors)
                     self.show_attack_buttons = False
                     self.attack_buttons = []
 
-        self.screen.fill(Colors.BLACK)
+        self.screen.fill(self.colors.BLACK)
 
         # Draw image placeholder
         image_placeholder_rect = pygame.Rect(20, 60, 200, 200)
-        pygame.draw.rect(self.screen, Colors.BLACK, image_placeholder_rect)
-        pygame.draw.rect(self.screen, Colors.BRIGHT_WHITE, image_placeholder_rect, 2)
+        pygame.draw.rect(self.screen, self.colors.BLACK, image_placeholder_rect)
+        pygame.draw.rect(self.screen, self.colors.BRIGHT_WHITE, image_placeholder_rect, 2)
 
         # Display game message
         y_offset = 60
@@ -486,17 +526,16 @@ class GameGUI:
 
         # Display top bar
         top_bar_rect = pygame.Rect(0, 0, self.screen_width, 40)
-        pygame.draw.rect(self.screen, Colors.BLACK, top_bar_rect)
-        pygame.draw.rect(self.screen, Colors.BRIGHT_WHITE, top_bar_rect, 2)
+        pygame.draw.rect(self.screen, self.colors.BLACK, top_bar_rect)
+        pygame.draw.rect(self.screen, self.colors.BRIGHT_WHITE, top_bar_rect, 2)
 
         if self.game:
-            status_text = f"HP: {self.game.player.health} | Hunger: {self.game.player.hunger} | Thirst: {self.game.player.thirst} | Energy: {self.game.player.energy} | Ailments: {', '.join(self.game.player.ailments) if self.game.player.ailments else 'None'}"
-            status_surface = self.font.render(status_text, True, Colors.BRIGHT_WHITE)
+                        status_surface = self.font.render(status_text, True, self.colors.BRIGHT_WHITE)
             self.screen.blit(status_surface, (20, 10))
 
             # Display location
             location_text = f"Location: {self.game.player.current_room.zone} ({self.game.player.x},{self.game.player.y},{self.game.player.z}) Strata: {self.game.player.current_strata.strata_id}"
-            location_surface = self.font.render(location_text, True, Colors.BRIGHT_WHITE)
+            location_surface = self.font.render(location_text, True, self.colors.BRIGHT_WHITE)
             self.screen.blit(location_surface, (20, self.screen_height - 80))
 
         
@@ -516,6 +555,46 @@ class GameGUI:
                 button.draw(self.screen, self.font)
 
         pygame.display.flip()
+
+    def get_save_files(self):
+        if not os.path.exists("saves"):
+            return []
+        files = []
+        for f in os.listdir("saves"):
+            if f.endswith(".json"):
+                file_path = os.path.join("saves", f)
+                date_str = f.replace("save_", "").replace(".json", "")
+                try:
+                    date_obj = datetime.strptime(date_str, "%Y-%m-%d_%H-%M-%S")
+                    files.append((file_path, date_obj.strftime("%Y-%m-%d %H:%M:%S")))
+                except ValueError:
+                    continue
+        return sorted(files, key=lambda x: x[1], reverse=True)
+
+    def save_game_state(self):
+        if not os.path.exists("saves"):
+            os.makedirs("saves")
+        
+        now = datetime.now()
+        file_name = f"save_{now.strftime('%Y-%m-%d_%H-%M-%S')}.json"
+        file_path = os.path.join("saves", file_name)
+
+        data = {
+            "player": self.game.player.to_json(),
+            "stratas": [strata.to_json() for strata in self.game.all_stratas]
+        }
+
+        with open(file_path, "w") as f:
+            json.dump(data, f, indent=4)
+
+    def load_game_state(self, file_path):
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        
+        all_stratas = [Strata.from_json(s_data) for s_data in data["stratas"]]
+        player = Player.from_json(data["player"], all_stratas)
+        self.game = Game(all_stratas=all_stratas, player=player)
+        self.game.message.extend(self.game.handle_command("look", self.colors))
 
 if __name__ == "__main__":
     gui = GameGUI()

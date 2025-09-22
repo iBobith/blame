@@ -23,9 +23,9 @@ Blame is a non-profit fan game created based off of the 1998 manga BLAME! by Tsu
   - [x] Style
     - [x] Main menu
       - [x] Start new game (creates save file)
-      - [~] Load game (checks for save files to select from)
+      - [x] Load game (checks for save files to select from)
       - [~] Settings
-        - [ ] Dark/light mode (inverts the black and white textures)
+        - [~] Dark/light mode (inverts the black and white textures)
         - [ ] Text speed
         - [ ] Link to github
       - [x] Exit game
@@ -45,7 +45,7 @@ Blame is a non-profit fan game created based off of the 1998 manga BLAME! by Tsu
         - [~] Talk (Used for entering dialogue with NPCs)
       - [x] Attack button
         - [x] Display all attackable entities (enemies, damaged panels, doors, obstacles)
-          - [~] After selecting a target, promts the user what they want to use to attack
+          - [ ] After selecting a target, promts the user what they want to use to attack
         - [ ] Escape button (Used to try and escape from combat interaction)
       - [ ]
 - [ ] Apply new art style direction (Importing images, locally, that have been generated into ASCII styling)

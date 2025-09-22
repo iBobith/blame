@@ -4,6 +4,7 @@ import os
 from src.gameobjects.items import Item, CyberneticImplant
 from src.gameobjects.interactables import Terminal, Obstacle, CyberneticTerminal
 from src.gameobjects.enemies import Enemy, NPC
+from src.gameobjects.factory import create_from_json
 
 # Load content from JSON file
 script_dir = os.path.dirname(__file__)
@@ -50,6 +51,26 @@ class Room:
             return None
         return random.choice(list(self.exits.keys()))
 
+    def to_json(self):
+        return {
+            "description": self.description,
+            "zone": self.zone,
+            "x": self.x,
+            "y": self.y,
+            "z": self.z,
+            "items": [item.to_json() for item in self.items],
+            "enemies": [enemy.to_json() for enemy in self.enemies],
+            "obstacles": {direction: obstacle.to_json() for direction, obstacle in self.obstacles.items()}
+        }
+
+    @classmethod
+    def from_json(cls, data):
+        room = cls(data["description"], data["zone"], data["x"], data["y"], data["z"])
+        room.items = [create_from_json(item_data) for item_data in data["items"]]
+        room.enemies = [Enemy.from_json(enemy_data) for enemy_data in data["enemies"]]
+        room.obstacles = {direction: Obstacle.from_json(obstacle_data) for direction, obstacle_data in data["obstacles"].items()}
+        return room
+
 class Strata:
     def __init__(self, width, height, depth, strata_id):
         self.width = width
@@ -58,6 +79,44 @@ class Strata:
         self.strata_id = strata_id
         self.grid = {} # (x, y, z) -> Room object
         self.exits_to_next_strata = [] # List of (Room, direction) tuples
+
+    def to_json(self):
+        return {
+            "width": self.width,
+            "height": self.height,
+            "depth": self.depth,
+            "strata_id": self.strata_id,
+            "grid": {f"{x},{y},{z}": room.to_json() for (x, y, z), room in self.grid.items()}
+        }
+
+    @classmethod
+    def from_json(cls, data):
+        strata = cls(data["width"], data["height"], data["depth"], data["strata_id"])
+        for key, room_data in data["grid"].items():
+            x, y, z = map(int, key.split(","))
+            strata.grid[(x, y, z)] = Room.from_json(room_data)
+        
+        # Reconnect exits after all rooms are created
+        for (x, y, z), room in strata.grid.items():
+            # Connect North/South
+            if y > 0:
+                north_room = strata.grid.get((x, y - 1, z))
+                if north_room:
+                    room.add_exit("north", north_room)
+                    north_room.add_exit("south", room)
+            # Connect East/West
+            if x > 0:
+                west_room = strata.grid.get((x - 1, y, z))
+                if west_room:
+                    room.add_exit("west", west_room)
+                    west_room.add_exit("east", room)
+            # Connect Up/Down
+            if z > 0:
+                down_room = strata.grid.get((x, y, z - 1))
+                if down_room:
+                    room.add_exit("down", down_room)
+                    down_room.add_exit("up", room)
+        return strata
 
 DIRECTIONS = ["north", "south", "east", "west", "up", "down"]
 
