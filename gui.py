@@ -4,6 +4,7 @@ import platform
 import random
 import json
 from datetime import datetime
+import webbrowser
 from src.world import generate_world, get_opposite_direction, CONTENT, Room, Strata
 from src.gameobjects.interactables import Terminal, Obstacle, CyberneticTerminal
 from src.gameobjects.enemies import Enemy, NPC
@@ -114,6 +115,7 @@ class Game:
             starting_room, self.all_stratas = generate_world(num_stratas=1)
             self.player = Player(starting_room, self.all_stratas[0])
         self.message = []
+        self.current_attack_target = None # New attribute
 
     def handle_command(self, command, colors):
         parts = command.split()
@@ -316,50 +318,87 @@ class Game:
             
             target_name = " ".join(parts[1:])
             
-            enemy_to_attack = None
+            # Find target (enemy or obstacle)
+            target = None
             for enemy in self.player.current_room.enemies:
                 if enemy.name.lower() == target_name.lower():
-                    enemy_to_attack = enemy
+                    target = enemy
                     break
+            if not target:
+                for direction, obstacle in self.player.current_room.obstacles.items():
+                    if obstacle.name.lower() == target_name.lower():
+                        target = obstacle
+                        break
             
-            if enemy_to_attack:
-                output = []
-                player_damage = self.player.strength
-                if self.player.find_item_by_name("gbe"):
-                    output.append((f"You fire the GBE!", colors.YELLOW))
-                    player_damage = 50
-                
-                effective_damage = max(0, player_damage - enemy_to_attack.durability)
-                enemy_to_attack.health -= effective_damage
-                output.append((f"You attack the {enemy_to_attack.name} for {effective_damage} damage.", colors.GREEN))
+            if target:
+                self.current_attack_target = target
+                # This will trigger the GUI to show weapon selection
+                return [(f"You target the {target.name}. Choose a weapon.", colors.BRIGHT_WHITE)]
+            else:
+                return [(f"There is nothing here to attack by that name.", colors.RED)]
+        elif verb == "use_weapon":
+            if not self.current_attack_target:
+                return [(f"No target selected for attack.", colors.RED)]
+            
+            if len(parts) < 2:
+                return [(f"Use what weapon?", colors.YELLOW)]
+            
+            weapon_name = " ".join(parts[1:])
+            weapon = self.player.find_item_by_name(weapon_name)
 
-                if not enemy_to_attack.is_alive():
-                    output.append((f"The {enemy_to_attack.name} is destroyed.", colors.GREEN))
-                    self.player.current_room.remove_enemy(enemy_to_attack)
+            if not weapon:
+                return [(f"You don't have a {weapon_name}.", colors.RED)]
+            
+            # Assuming 'gbe' is the only special weapon for now
+            player_damage = self.player.strength
+            if weapon.name.lower() == "gbe":
+                player_damage = 50 # GBE specific damage
+
+            output = []
+            target = self.current_attack_target
+
+            if isinstance(target, Enemy):
+                effective_damage = max(0, player_damage - target.durability)
+                target.health -= effective_damage
+                output.append((f"You attack the {target.name} with {weapon.name} for {effective_damage} damage.", colors.GREEN))
+
+                if not target.is_alive():
+                    output.append((f"The {target.name} is destroyed.", colors.GREEN))
+                    self.player.current_room.remove_enemy(target)
                 
+                # Enemy counter-attack
+                for enemy in self.player.current_room.enemies: # All remaining enemies attack
+                    self.player.health -= enemy.damage
+                    output.append((f"The {enemy.name} attacks you for {enemy.damage} damage.", colors.RED))
+            elif isinstance(target, Obstacle):
+                target.health -= player_damage
+                output.append((f"You attack the {target.name} with {weapon.name} for {player_damage} damage.", colors.GREEN))
+                if target.is_destroyed():
+                    output.append((f"The {target.name} is destroyed.", colors.GREEN))
+                    # Need to find the direction of the obstacle to remove it
+                    for direction, obs in self.player.current_room.obstacles.items():
+                        if obs == target:
+                            self.player.current_room.remove_obstacle(direction)
+                            break
+            
+            self.current_attack_target = None # Clear target after attack
+            return output
+
+        elif verb == "escape":
+            if not self.player.current_room.enemies:
+                return [("You are not in combat.", colors.YELLOW)]
+            
+            # Simple escape logic: 50% chance to escape
+            if random.random() < 0.5:
+                self.player.current_room.enemies = [] # Clear enemies
+                return [("You successfully escaped from combat!", colors.GREEN)]
+            else:
+                output = [("You failed to escape!", colors.RED)]
+                # Enemies get a free attack
                 for enemy in self.player.current_room.enemies:
                     self.player.health -= enemy.damage
                     output.append((f"The {enemy.name} attacks you for {enemy.damage} damage.", colors.RED))
                 return output
-
-            obstacle_to_attack = None
-            obstacle_direction = None
-            for direction, obstacle in self.player.current_room.obstacles.items():
-                if obstacle.name.lower() == target_name.lower():
-                    obstacle_to_attack = obstacle
-                    obstacle_direction = direction
-                    break
-            
-            if obstacle_to_attack:
-                player_damage = self.player.strength
-                obstacle_to_attack.health -= player_damage
-                output = [(f"You attack the {obstacle_to_attack.name} for {player_damage} damage.", colors.GREEN)]
-                if obstacle_to_attack.is_destroyed():
-                    output.append((f"The {obstacle_to_attack.name} is destroyed.", colors.GREEN))
-                    self.player.current_room.remove_obstacle(obstacle_direction)
-                return output
-
-            return [(f"There is nothing here to attack by that name.", colors.RED)]
 
         else:
             return [(f"Unknown command: '{command}'", colors.RED)]
@@ -399,6 +438,8 @@ class GameGUI:
         self.font = pygame.font.Font(None, 24)
         self.game_state = "main_menu"
         self.colors = Colors()
+        self.text_speed = 1 # Default text speed (1 = normal, higher = faster)
+        self.text_speed_options = [1, 2, 3] # Options for text speed
 
         # Main menu buttons
         self.start_button = Button(300, 200, 200, 50, "Start New Game", self.colors)
@@ -420,6 +461,8 @@ class GameGUI:
         self.move_button = Button(20, self.screen_height - 120, 100, 30, "Move", self.colors)
         self.interact_button = Button(130, self.screen_height - 120, 100, 30, "Interact", self.colors)
         self.attack_button = Button(240, self.screen_height - 120, 100, 30, "Attack", self.colors)
+        self.escape_button = Button(350, self.screen_height - 120, 100, 30, "Escape", self.colors) # New button
+        self.menu_button = Button(self.screen_width - 120, self.screen_height - 120, 100, 30, "Menu", self.colors) # New menu button
         self.direction_buttons = []
         self.show_move_buttons = False
         self.interact_buttons = []
@@ -428,8 +471,199 @@ class GameGUI:
         self.show_attack_buttons = False
         self.save_files = []
         self.show_save_files = False
+        self.current_display_message = [] # Stores (text, color) tuples for animated display
+        self.displayed_characters_count = 0
+        self.last_char_display_time = 0
+        self.previous_game_state = "main_menu" # New attribute to track previous state
 
-    
+    def run(self):
+        while self.is_running:
+            if self.game_state == "main_menu":
+                self.run_main_menu()
+            elif self.game_state == "in_game":
+                self.run_game()
+            elif self.game_state == "settings":
+                self.run_settings()
+            elif self.game_state == "load_game":
+                self.run_load_game()
+            elif self.game_state == "select_weapon":
+                self.run_select_weapon()
+            elif self.game_state == "pause_menu":
+                self.run_pause_menu()
+
+    def run_main_menu(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.is_running = False
+            if self.start_button.handle_event(event):
+                self.game = Game()
+                self.game.message.extend(self.game.handle_command("look", self.colors))
+                self.game_state = "in_game"
+            if self.load_button.handle_event(event):
+                self.save_files = self.get_save_files()
+                self.game_state = "load_game"
+            if self.settings_button.handle_event(event):
+                self.previous_game_state = "main_menu" # Store current state
+                self.game_state = "settings"
+            if self.exit_button.handle_event(event):
+                self.is_running = False
+
+        self.screen.fill(self.colors.BLACK)
+        self.start_button.draw(self.screen, self.font)
+        self.load_button.draw(self.screen, self.font)
+        self.settings_button.draw(self.screen, self.font)
+        self.exit_button.draw(self.screen, self.font)
+        pygame.display.flip()
+
+    def run_settings(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.is_running = False
+            if self.dark_mode_button.handle_event(event):
+                current_theme = 'dark' if self.colors.BLACK == (0,0,0) else 'light'
+                new_theme = 'light' if current_theme == 'dark' else 'dark'
+                self.colors.set_theme(new_theme)
+                # Re-create buttons with new colors
+                self.dark_mode_button = Button(300, 200, 200, 50, "Dark/Light Mode", self.colors)
+                self.text_speed_button = Button(300, 260, 200, 50, "Text Speed", self.colors)
+                self.github_button = Button(300, 320, 200, 50, "Github", self.colors)
+                self.back_button = Button(300, 380, 200, 50, "Back", self.colors)
+            elif self.text_speed_button.handle_event(event): # New handler
+                current_index = self.text_speed_options.index(self.text_speed)
+                next_index = (current_index + 1) % len(self.text_speed_options)
+                self.text_speed = self.text_speed_options[next_index]
+                self.text_speed_button = Button(300, 260, 200, 50, f"Text Speed: {self.text_speed}", self.colors) # Re-create button with new text
+            elif self.github_button.handle_event(event): # New handler for GitHub link
+                webbrowser.open("https://github.com/iBobith/blame") 
+            if self.back_button.handle_event(event):
+                self.game_state = self.previous_game_state # Return to previous state
+
+        self.screen.fill(self.colors.BLACK)
+        self.dark_mode_button.draw(self.screen, self.font)
+        self.text_speed_button.draw(self.screen, self.font)
+        self.github_button.draw(self.screen, self.font)
+        self.back_button.draw(self.screen, self.font)
+        pygame.display.flip()
+
+    def run_load_game(self):
+        buttons = []
+        y_offset = 150
+
+        # Create a back button for the load game screen
+        back_button = Button(300, self.screen_height - 80, 200, 50, "Back", self.colors)
+
+        # FIX: Populate buttons BEFORE the event loop so they are available for event handling
+        if self.save_files:
+            for file_path, date_str in self.save_files:
+                button = Button(300, y_offset, 200, 40, date_str, self.colors)
+                buttons.append((button, file_path))
+                y_offset += 50
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.is_running = False
+            
+            if back_button.handle_event(event):
+                self.game_state = "main_menu"
+                return
+
+            if self.save_files:
+                for button, file_path in buttons:
+                    if button.handle_event(event):
+                        self.load_game_state(file_path)
+                        self.game_state = "in_game"
+                        return 
+
+        self.screen.fill(self.colors.BLACK)
+
+        if not self.save_files:
+            no_saves_text = self.font.render("No saved games found.", True, self.colors.BRIGHT_WHITE)
+            no_saves_rect = no_saves_text.get_rect(center=(self.screen_width // 2, self.screen_height // 2 - 50))
+            self.screen.blit(no_saves_text, no_saves_rect)
+        else:
+            for button, _ in buttons:
+                button.draw(self.screen, self.font)
+        
+        back_button.draw(self.screen, self.font)
+        pygame.display.flip()
+
+    def run_select_weapon(self):
+        weapon_buttons = []
+        y_offset = 150
+
+        # Create buttons for each weapon in player's inventory
+        for item in self.game.player.inventory:
+            # Assuming only 'Item' objects can be weapons for now
+            if isinstance(item, Item) and item.name.lower() == "gbe": # Only GBE is a weapon for now
+                button = Button(300, y_offset, 200, 40, item.name, self.colors)
+                weapon_buttons.append((button, item.name))
+                y_offset += 50
+        
+        back_button = Button(300, y_offset + 50, 200, 50, "Back", self.colors)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.is_running = False
+            
+            if back_button.handle_event(event):
+                self.game.current_attack_target = None # Clear target
+                self.game_state = "in_game"
+                return
+
+            for button, weapon_name in weapon_buttons:
+                if button.handle_event(event):
+                    self.game.message = self.game.handle_command(f"use_weapon {weapon_name}", self.colors)
+                    self.game_state = "in_game"
+                    return
+        
+        self.screen.fill(self.colors.BLACK)
+
+        # Display message
+        message_text = self.font.render(f"Attacking {self.game.current_attack_target.name}. Choose your weapon:", True, self.colors.BRIGHT_WHITE)
+        message_rect = message_text.get_rect(center=(self.screen_width // 2, 100))
+        self.screen.blit(message_text, message_rect)
+
+        for button, _ in weapon_buttons:
+            button.draw(self.screen, self.font)
+        back_button.draw(self.screen, self.font)
+        pygame.display.flip()
+
+    def run_pause_menu(self):
+        # Pause menu buttons
+        resume_button = Button(300, 150, 200, 50, "Resume Game", self.colors)
+        save_button = Button(300, 210, 200, 50, "Save Game", self.colors)
+        load_button = Button(300, 270, 200, 50, "Load Game", self.colors)
+        settings_button = Button(300, 330, 200, 50, "Settings", self.colors)
+        exit_to_main_button = Button(300, 390, 200, 50, "Exit to Main Menu", self.colors)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.is_running = False
+            
+            if resume_button.handle_event(event):
+                self.game_state = "in_game"
+            if save_button.handle_event(event):
+                self.save_game_state()
+                self.game.message = [("Game saved!", self.colors.GREEN)]
+                self.game_state = "in_game" # Return to game after saving
+            if load_button.handle_event(event):
+                self.save_files = self.get_save_files()
+                self.game_state = "load_game"
+            if settings_button.handle_event(event):
+                self.previous_game_state = "in_game" # Store current state
+                self.game_state = "settings"
+            if exit_to_main_button.handle_event(event):
+                self.game = None # Reset game state
+                self.game_state = "main_menu"
+
+        self.screen.fill(self.colors.BLACK)
+
+        resume_button.draw(self.screen, self.font)
+        save_button.draw(self.screen, self.font)
+        load_button.draw(self.screen, self.font)
+        settings_button.draw(self.screen, self.font)
+        exit_to_main_button.draw(self.screen, self.font)
+        pygame.display.flip()
 
     def run_game(self):
         if not self.game.player.is_alive():
@@ -487,6 +721,12 @@ class GameGUI:
                         x_offset += 90
                 else:
                     self.attack_buttons = []
+            
+            if self.game.player.current_room.enemies and self.escape_button.handle_event(event):
+                self.game.message = self.game.handle_command("escape", self.colors)
+            
+            if self.menu_button.handle_event(event): # New menu button handler
+                self.game_state = "pause_menu"
 
             for button in self.direction_buttons:
                 if button.handle_event(event):
@@ -502,9 +742,15 @@ class GameGUI:
             
             for button in self.attack_buttons:
                 if button.handle_event(event):
+                    # Call handle_command to set the current_attack_target
+                    # The handle_command for "attack" now returns a message and sets current_attack_target
                     self.game.message = self.game.handle_command(button.text, self.colors)
                     self.show_attack_buttons = False
                     self.attack_buttons = []
+                    # If a target was successfully selected, transition to select_weapon state
+                    if self.game.current_attack_target:
+                        self.game_state = "select_weapon"
+                    return # Exit event loop after handling button click
 
         self.screen.fill(self.colors.BLACK)
 
@@ -513,16 +759,45 @@ class GameGUI:
         pygame.draw.rect(self.screen, self.colors.BLACK, image_placeholder_rect)
         pygame.draw.rect(self.screen, self.colors.BRIGHT_WHITE, image_placeholder_rect, 2)
 
-        # Display game message
+        # Display game message with animation
         y_offset = 60
         x_offset = 240
+
+        # If game message has changed, reset animation
         if self.game and self.game.message:
-            for text, color in self.game.message:
-                lines = text.split('\n')
+            if self.game.message != self.current_display_message:
+                self.current_display_message = self.game.message[:] # Copy the message
+                self.displayed_characters_count = 0
+                self.last_char_display_time = pygame.time.get_ticks()
+            self.game.message = [] # Clear game.message after copying
+
+        if self.current_display_message:
+            current_time = pygame.time.get_ticks()
+            delay_per_char = 50 // self.text_speed # Adjust delay based on text speed
+
+            # Update displayed characters if enough time has passed
+            if current_time - self.last_char_display_time > delay_per_char:
+                self.displayed_characters_count += 1
+                self.last_char_display_time = current_time
+
+            total_chars_rendered = 0
+            for text_tuple in self.current_display_message:
+                full_text, color = text_tuple
+                lines = full_text.split('\n')
                 for line in lines:
-                    text_surface = self.font.render(line, True, color)
+                    chars_to_display = min(len(line), self.displayed_characters_count - total_chars_rendered)
+                    displayed_line = line[:chars_to_display]
+                    
+                    text_surface = self.font.render(displayed_line, True, color)
                     self.screen.blit(text_surface, (x_offset, y_offset))
                     y_offset += 24
+                    total_chars_rendered += len(line)
+                    
+                    if total_chars_rendered >= self.displayed_characters_count:
+                        # Stop displaying if we've reached the limit for this frame
+                        break
+                if total_chars_rendered >= self.displayed_characters_count:
+                    break
 
         # Display top bar
         top_bar_rect = pygame.Rect(0, 0, self.screen_width, 40)
@@ -530,7 +805,10 @@ class GameGUI:
         pygame.draw.rect(self.screen, self.colors.BRIGHT_WHITE, top_bar_rect, 2)
 
         if self.game:
-                        status_surface = self.font.render(status_text, True, self.colors.BRIGHT_WHITE)
+            status_text = f"HP: {self.game.player.health} | Hunger: {self.game.player.hunger} | Thirst: {self.game.player.thirst} | Energy: {self.game.player.energy}"
+            if self.game.player.ailments:
+                status_text += f" | Ailments: {', '.join(self.game.player.ailments)}"
+            status_surface = self.font.render(status_text, True, self.colors.BRIGHT_WHITE)
             self.screen.blit(status_surface, (20, 10))
 
             # Display location
@@ -544,6 +822,9 @@ class GameGUI:
         self.move_button.draw(self.screen, self.font)
         self.interact_button.draw(self.screen, self.font)
         self.attack_button.draw(self.screen, self.font)
+        if self.game and self.game.player.current_room.enemies: # Only draw escape button if in combat
+            self.escape_button.draw(self.screen, self.font)
+        self.menu_button.draw(self.screen, self.font) # Draw menu button always in game
         if self.show_move_buttons:
             for button in self.direction_buttons:
                 button.draw(self.screen, self.font)

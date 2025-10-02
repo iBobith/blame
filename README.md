@@ -26,8 +26,8 @@ Blame is a non-profit fan game created based off of the 1998 manga BLAME! by Tsu
       - [x] Load game (checks for save files to select from)
       - [~] Settings
         - [~] Dark/light mode (inverts the black and white textures)
-        - [ ] Text speed
-        - [ ] Link to github
+        - [x] Text speed
+        - [x] Link to github
       - [x] Exit game
     - [x] Game UI
       - [x] Has a bar at the top of the screen always displaying users HP, Hunger, Thirst, Energy, Physical state (ailments)
@@ -36,18 +36,18 @@ Blame is a non-profit fan game created based off of the 1998 manga BLAME! by Tsu
         - [x] When interacting, updates text, not changing room text, just expressing what the user is doing/cant do
       - [x] To the left of the terminal indicator, space to place images to help illustrate user's location
       - [x] Button at the bottom of the screen
-      - [x] Move button
-        - [x] Provides a choice between cardinal directions, as well as an optino to go back
-      - [x] Interact button (displays interaction options as a replaced menu)
-        - [x] Get (Used to pick up items)
-        - [x] Use (Used to interact with doors/keypads/terminals)
-        - [~] Implant (Used to install implants that are within the user's inventory)
-        - [~] Talk (Used for entering dialogue with NPCs)
-      - [x] Attack button
-        - [x] Display all attackable entities (enemies, damaged panels, doors, obstacles)
-          - [ ] After selecting a target, promts the user what they want to use to attack
-        - [ ] Escape button (Used to try and escape from combat interaction)
-      - [ ]
+        - [x] Move button
+          - [x] Provides a choice between cardinal directions, as well as an optino to go back
+        - [x] Interact button (displays interaction options as a replaced menu)
+          - [x] Get (Used to pick up items)
+          - [x] Use (Used to interact with doors/keypads/terminals)
+          - [~] Implant (Used to install implants that are within the user's inventory)
+          - [~] Talk (Used for entering dialogue with NPCs)
+        - [x] Attack button
+          - [x] Display all attackable entities (enemies, damaged panels, doors, obstacles)
+            - [x] After selecting a target, promts the user what they want to use to attack
+        - [x] Escape button (Used to try and escape from combat interaction)
+      - [x] Menu button with subfeatures (Save Game, Load Game, Settings, Exit to Main Menu, Resume Game)
 - [ ] Apply new art style direction (Importing images, locally, that have been generated into ASCII styling)
 - [ ] Enhance procedural mapping
   - [ ] Player doesnt spawn at 0,0,0. Its a random place amidst the megastructure. Exits are located at a random higher y level, x and z coords are random too, but logical within the procedural mapping of the strata.
