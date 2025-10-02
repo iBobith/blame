@@ -1,7 +1,27 @@
+# Ignore Python cache files
 __pycache__/
 *.pyc
+
+# Ignore saved game files
+saves/
+
+# Python
 *.pyo
 *.pyd
-saves/
-*.save
-*.sav
+*.egg-info/
+dist/
+build/
+
+# Virtualenv
+venv/
+.venv/
+env/
+.env
+
+# IDEs
+.idea/
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
