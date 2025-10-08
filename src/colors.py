@@ -1,31 +1,25 @@
 class Colors:
-    RESET = '\033[0m'
-    BLACK = '\033[30m'
-    RED = '\033[31m'
-    GREEN = '\033[32m'
-    YELLOW = '\033[33m'
-    BLUE = '\033[34m'
-    MAGENTA = '\033[35m'
-    CYAN = '\033[36m'
-    WHITE = '\033[37m'
-    BRIGHT_BLACK = '\033[90m'
-    BRIGHT_RED = '\033[91m'
-    BRIGHT_GREEN = '\033[92m'
-    BRIGHT_YELLOW = '\033[93m'
-    BRIGHT_BLUE = '\033[94m'
-    BRIGHT_MAGENTA = '\033[95m'
-    BRIGHT_CYAN = '\033[96m'
-    BRIGHT_WHITE = '\033[97m'
+    def __init__(self, theme='dark'):
+        self.theme = theme
+        self.set_theme(theme)
 
-    BG_BLACK = '\033[40m'
-    BG_RED = '\033[41m'
-    BG_GREEN = '\033[42m'
-    BG_YELLOW = '\033[43m'
-    BG_BLUE = '\033[44m'
-    BG_MAGENTA = '\033[45m'
-    BG_CYAN = '\033[46m'
-    BG_WHITE = '\033[47m'
-
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-    INVERT = '\033[7m'
+    def set_theme(self, theme):
+        self.theme = theme
+        if theme == 'dark':
+            self.BRIGHT_BLUE = "#0080FF"
+            self.BRIGHT_WHITE = "#FFFFFF"
+            self.GREEN = "#00FF00"
+            self.YELLOW = "#FFFF00"
+            self.CYAN = "#00FFFF"
+            self.MAGENTA = "#FF00FF"
+            self.RED = "#FF0000"
+            self.BLACK = "#000000"
+        else:
+            self.BRIGHT_BLUE = "#0000FF"
+            self.BRIGHT_WHITE = "#000000"
+            self.GREEN = "#008000"
+            self.YELLOW = "#C8C800"
+            self.CYAN = "#008080"
+            self.MAGENTA = "#800080"
+            self.RED = "#FF0000"
+            self.BLACK = "#FFFFFF"
